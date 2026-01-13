@@ -2,101 +2,159 @@
 #include <string.h>
 #include <ctype.h>
 
-#define MAX 50
+#define MAX 100
+#define SUBJECTS 5
 
-struct student {
+
+struct Student {
     char id[20];
-    char name[30];
-    int marks[5];
+    char name[50];
+    int marks[SUBJECTS];
+    int total;
+    float percentage;
+    char grade[3];
 };
 
 
-int isValidID(char id[]) {
-    for (int i = 0; id[i] != '\0'; i++) {  
-        if (!isalnum(id[i]))
-            return 0;
-    }
-    return 1;
-}
+int isValidID(char id[], struct Student s[], int count);
+int isValidName(char name[]);
+int isValidMarks(int m);
+void calculateResult(struct Student *s);
+void assignGrade(struct Student *s);
+void display(struct Student s[], int n);
+void classStatistics(struct Student s[], int n);
 
-
-int isValidName(char name[]) {
-    for (int i = 0; name[i] != '\0'; i++) { 
-        if (!isalpha(name[i]))           
-            return 0;
-    }
-    return 1;
-}
-
-
-int isDuplicateID(struct student s[], int count, char id[]) {
-    for (int i = 0; i < count; i++) {
-        if (strcmp(s[i].id, id) == 0)
-            return 1;
-    }
-    return 0;
-}
 
 int main() {
+    struct Student s[MAX];
+    int n;
     FILE *fp;
-    struct student s[MAX];
-    int n, count = 0;
 
     fp = fopen("students.txt", "r");
     if (fp == NULL) {
-        printf("FILE NOT FOUND\n");
+        printf("Error opening file!\n");
         return 1;
     }
 
     fscanf(fp, "%d", &n);
 
     for (int i = 0; i < n; i++) {
-        char id[20], name[30];
-        int marks[5];
-        int valid = 1;
 
-        fscanf(fp, "%s %s", id, name);
-
-        for (int j = 0; j < 5; j++) {
-            fscanf(fp, "%d", &marks[j]);
+        fscanf(fp, "%s", s[i].id);
+        if (!isValidID(s[i].id, s, i)) {
+            printf("Invalid or Duplicate ID: %s\n", s[i].id);
+            return 1;
         }
 
-        if (!isValidID(id)) {
-            printf("INVALID ID: %s\n", id);
-            valid = 0;
+        fscanf(fp, "%s", s[i].name);
+        if (!isValidName(s[i].name)) {
+            printf("Invalid Name: %s\n", s[i].name);
+            return 1;
         }
 
-        if (!isValidName(name)) {
-            printf("INVALID NAME: %s\n", name);
-            valid = 0;
-        }
-
-        if (isDuplicateID(s, count, id)) {
-            printf("DUPLICATE ID FOUND: %s\n", id);
-            valid = 0;
-        }
-
-        for (int j = 0; j < 5; j++) {
-            if (marks[j] < 0 || marks[j] > 100) {
-                printf("INVALID MARKS for ID %s\n", id);
-                valid = 0;
-                break;
+        for (int j = 0; j < SUBJECTS; j++) {
+            fscanf(fp, "%d", &s[i].marks[j]);
+            if (!isValidMarks(s[i].marks[j])) {
+                printf("Invalid Marks for %s\n", s[i].name);
+                return 1;
             }
         }
 
-        if (valid) {
-            strcpy(s[count].id, id);
-            strcpy(s[count].name, name);
-            for (int j = 0; j < 5; j++) {
-                s[count].marks[j] = marks[j];
-            }
-            count++;
-            printf("RECORD ACCEPTED: %s\n", id);
-        }
+        calculateResult(&s[i]);
     }
 
     fclose(fp);
-    printf("\nTOTAL VALID RECORDS = %d\n", count);
+
+    display(s, n);
+    classStatistics(s, n);
 
     return 0;
+}
+
+int isValidID(char id[], struct Student s[], int count) {
+    for (int i = 0; id[i]; i++)
+        if (!isalnum(id[i]))
+            return 0;
+
+    for (int i = 0; i < count; i++)
+        if (strcmp(id, s[i].id) == 0)
+            return 0;
+
+    return 1;
+}
+
+int isValidName(char name[]) {
+    for (int i = 0; name[i]; i++)
+        if (!isalpha(name[i]))
+            return 0;
+    return 1;
+}
+
+
+int isValidMarks(int m) {
+    return (m >= 0 && m <= 100);
+}
+
+
+void calculateResult(struct Student *s) {
+    s->total = 0;
+    for (int i = 0; i < SUBJECTS; i++)
+        s->total += s->marks[i];
+
+    s->percentage = s->total / 5.0;
+    assignGrade(s);
+}
+
+
+void assignGrade(struct Student *s) {
+    float p = s->percentage;
+
+    if (p >= 90) strcpy(s->grade, "O");
+    else if (p >= 85) strcpy(s->grade, "A+");
+    else if (p >= 75) strcpy(s->grade, "A");
+    else if (p >= 65) strcpy(s->grade, "B+");
+    else if (p >= 60) strcpy(s->grade, "B");
+    else if (p >= 55) strcpy(s->grade, "C");
+    else if (p >= 50) strcpy(s->grade, "D");
+    else strcpy(s->grade, "F");
+}
+
+void display(struct Student s[], int n) {
+    printf("\nID\tName\tTotal\tPercentage\tGrade\n");
+    printf("-------------------------------------------------\n");
+    for (int i = 0; i < n; i++) {
+        printf("%s\t%s\t%d\t%.2f\t\t%s\n",
+               s[i].id, s[i].name, s[i].total,
+               s[i].percentage, s[i].grade);
+    }
+}
+
+
+void classStatistics(struct Student s[], int n) {
+    float sum = 0, max = s[0].percentage, min = s[0].percentage;
+    int gradeCount[8] = {0};
+
+    for (int i = 0; i < n; i++) {
+        sum += s[i].percentage;
+        if (s[i].percentage > max) max = s[i].percentage;
+        if (s[i].percentage < min) min = s[i].percentage;
+
+        if (!strcmp(s[i].grade, "O")) gradeCount[0]++;
+        else if (!strcmp(s[i].grade, "A+")) gradeCount[1]++;
+        else if (!strcmp(s[i].grade, "A")) gradeCount[2]++;
+        else if (!strcmp(s[i].grade, "B+")) gradeCount[3]++;
+        else if (!strcmp(s[i].grade, "B")) gradeCount[4]++;
+        else if (!strcmp(s[i].grade, "C")) gradeCount[5]++;
+        else if (!strcmp(s[i].grade, "D")) gradeCount[6]++;
+        else gradeCount[7]++;
+    }
+
+    printf("\nClass Average: %.2f\n", sum / n);
+    printf("Highest Percentage: %.2f\n", max);
+    printf("Lowest Percentage: %.2f\n", min);
+
+    printf("\nGrade Distribution:\n");
+    printf("O: %d\nA+: %d\nA: %d\nB+: %d\nB: %d\nC: %d\nD: %d\nF: %d\n",
+           gradeCount[0], gradeCount[1], gradeCount[2], gradeCount[3],
+           gradeCount[4], gradeCount[5], gradeCount[6], gradeCount[7]);
 }
